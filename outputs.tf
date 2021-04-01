@@ -1,6 +1,6 @@
-output "vpc_public_subnets" {
-  description = "IDs of the VPC's public subnets"
-  value       = module.vpc.public_subnets
+output "terraform_workspace" {
+  description = "Terraform workspace used to provision aws"
+  value       = terraform.workspace
 }
 
 # output "ec2_instance_public_ips" {

@@ -41,7 +41,7 @@ There are also some other files to be aware of, and ensure that you don't distri
 
 If you are tracking changes to your module in a version control system, such as git, you will want to configure your version control system to ignore these files.
 
-> :Warning: **Do Not Commit**: The files mentioned above will often include secret information such as passwords or access keys, which will become public if those files are committed to a public version control system!
+> **Do Not Commit**: The files mentioned above will often include secret information such as passwords or access keys, which will become public if those files are committed to a public version control system!
 
 ## AWS Provider
 
@@ -208,4 +208,4 @@ For example in this case using the workspace name as part of naming or tagging b
 
 A common use for multiple workspaces is to create a parallel, distinct copy of a set of infrastructure in order to test a set of changes before modifying the main production infrastructure. For example, a developer working on a complex set of infrastructure changes might create a new temporary workspace in order to freely experiment with changes without affecting the default workspace.
 
-> :Warning: To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
+> To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
