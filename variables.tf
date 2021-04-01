@@ -42,6 +42,12 @@ variable "vpc_public_subnets" {
   default     = ["10.0.101.0/24", "10.0.102.0/24"]
 }
 
+variable "vpc_enable_ipv6" {
+  description = "Enable IPv6 for VPC"
+  type        = bool
+  default     = false
+}
+
 variable "vpc_enable_nat_gateway" {
   description = "Enable NAT gateway for VPC"
   type        = bool

@@ -101,7 +101,7 @@ On the Terraform registry page for the AWS VPC module, you will see an Inputs ta
 
 Some input variables are required, meaning that the module doesn't provide a default value — an explicit value must be provided in order for Terraform to run correctly.
 
-We will define a ./vpc.tf for storing the VPC module configuration.  I have pulled some configuration out, to explain the provisioning concepts. 
+We will define a ./vpc.tf for storing the VPC module configuration. I have pulled some configuration out, to explain the provisioning concepts.
 
 ```terraform
 module "vpc" {
@@ -129,30 +129,30 @@ You can see the module version, this will ensure this repository is repeatable i
 
 Within the module "vpc" block, review the input variables you are setting. You can find each of these input variables documented in the Terraform registry
 
-* name will be the name of the VPC within AWS.
-* cidr describes the CIDR blocks used within your VPC.
-* azs are the availability zones that will be used for the VPC's subnets.
-* private_subnets are subnets within the VPC that will contain resources that do not have a public IP address or route.
-* public_subnets are subnets that will contain resources with public IP addresses and routes.
-* enable_nat_gateway if true, the module will provision NAT gateways for your private subnets.
-* tags specify the tags for each of the resources provisioned by this configuration within AWS.
+- name will be the name of the VPC within AWS.
+- cidr describes the CIDR blocks used within your VPC.
+- azs are the availability zones that will be used for the VPC's subnets.
+- private_subnets are subnets within the VPC that will contain resources that do not have a public IP address or route.
+- public_subnets are subnets that will contain resources with public IP addresses and routes.
+- enable_nat_gateway if true, the module will provision NAT gateways for your private subnets.
+- tags specify the tags for each of the resources provisioned by this configuration within AWS.
 
 > Note: The configuration above uses Availability Zones valid for the us-west-2 region configured earlier in this tutorial. If you use a different region, you will need to use matching Availability Zones, this should be defined in the ./terraform.tfvars file.
 
-At this point running terraform plan will create at least twelve resources, one VPC containing one or more: 
+At this point running terraform plan will create at least twelve resources, one VPC containing one or more:
 
-* VPC
-    * Public Subnet(s)
-    * Private Subnet(s)
-    * Public Route Table association(s)
-    * Private Route Table association(s)
-    * Public Route Table(s)
-    * Private Route Table(s)
-    * Route for Public Internet Gateway(s)
-    * Route for Private NAT Gateway(s)
-    * Internet Gateway(s)
-    * NAT Gateway(s)
-    * NAT EIP(s)
+- VPC
+  - Public Subnet(s)
+  - Private Subnet(s)
+  - Public Route Table association(s)
+  - Private Route Table association(s)
+  - Public Route Table(s)
+  - Private Route Table(s)
+  - Route for Public Internet Gateway(s)
+  - Route for Private NAT Gateway(s)
+  - Internet Gateway(s)
+  - NAT Gateway(s)
+  - NAT EIP(s)
 
 An example for the VPC resource after running the **terraform plan** command is shown below:
 
@@ -188,3 +188,24 @@ An example for the VPC resource after running the **terraform plan** command is 
     }
 ```
 
+### Terraform Workspaces
+
+Each Terraform configuration has an associated backend that defines how operations are executed and where persistent data such as the Terraform state are stored.
+
+The persistent data stored in the backend belongs to a workspace. Initially the backend has only one workspace, called "default", and thus there is only one Terraform state associated with that configuration.
+
+Certain backends support multiple named workspaces, allowing multiple states to be associated with a single configuration. The configuration still has only one backend, but multiple distinct instances of that configuration to be deployed without configuring a new backend or changing authentication credentials.
+
+In the [vpc.tf](./vpc.tf) you can see the line with a reference to terraform workspace.
+
+```terraform
+name = "${var.vpc_name} - ${terraform.workspace}"
+```
+
+Within your Terraform configuration, you may include the name of the current workspace using the ${terraform.workspace} interpolation sequence. This can be used anywhere interpolations are allowed.
+
+For example in this case using the workspace name as part of naming or tagging behaviour.
+
+A common use for multiple workspaces is to create a parallel, distinct copy of a set of infrastructure in order to test a set of changes before modifying the main production infrastructure. For example, a developer working on a complex set of infrastructure changes might create a new temporary workspace in order to freely experiment with changes without affecting the default workspace.
+
+> :Warning: To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
