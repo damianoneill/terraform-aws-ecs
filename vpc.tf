@@ -2,7 +2,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "2.77.0"
 
-  name = "${var.vpc_name} - ${terraform.workspace}"
+  name = var.vpc_name
   cidr = var.vpc_cidr
 
   azs             = var.vpc_azs
@@ -15,5 +15,19 @@ module "vpc" {
   enable_dns_support   = var.vpc_enable_dns_support
   enable_dns_hostnames = var.vpc_enable_dns_hostnames
 
-  tags = merge(var.common_tags, var.vpc_tags)
+  tags = merge(
+    var.common_tags,
+    var.vpc_tags,
+    { Workspace = terraform.workspace }
+  )
+  nat_gateway_tags = merge(
+    var.common_tags,
+    { Workspace = terraform.workspace }
+  )
+  igw_tags = merge(
+    var.common_tags,
+    { Workspace = terraform.workspace }
+  )
+
+  # see https://github.com/terraform-aws-modules/terraform-aws-vpc/issues/622 
 }

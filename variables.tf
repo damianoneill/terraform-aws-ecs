@@ -77,3 +77,22 @@ variable "vpc_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "aws_ecr_repository_repositories" {
+  description = "Map of ECR repositories to create"
+  type        = map(any)
+  default = {
+    repo1 = {
+      aws_ecr_repository_name = "repository1"
+    },
+    repo2 = {
+      aws_ecr_repository_name = "repository2"
+    }
+  }
+}
+
+variable "aws_ecr_repository_tags" {
+  description = "Tags to apply to resources created by ECR Repository module"
+  type        = map(string)
+  default     = {}
+}

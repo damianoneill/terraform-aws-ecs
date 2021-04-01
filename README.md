@@ -199,7 +199,11 @@ Certain backends support multiple named workspaces, allowing multiple states to 
 In the [vpc.tf](./vpc.tf) you can see the line with a reference to terraform workspace.
 
 ```terraform
-name = "${var.vpc_name} - ${terraform.workspace}"
+tags = merge(
+    var.common_tags,
+    var.vpc_tags,
+    { Workspace = terraform.workspace }
+  )
 ```
 
 Within your Terraform configuration, you may include the name of the current workspace using the ${terraform.workspace} interpolation sequence. This can be used anywhere interpolations are allowed.
@@ -209,3 +213,87 @@ For example in this case using the workspace name as part of naming or tagging b
 A common use for multiple workspaces is to create a parallel, distinct copy of a set of infrastructure in order to test a set of changes before modifying the main production infrastructure. For example, a developer working on a complex set of infrastructure changes might create a new temporary workspace in order to freely experiment with changes without affecting the default workspace.
 
 > To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
+
+## Terraform Data Sources
+
+Data sources allow data to be fetched or computed for use elsewhere in Terraform configuration. Use of data sources allows a Terraform configuration to make use of information defined outside of Terraform, or defined by another separate Terraform configuration.
+
+Each provider may offer data sources alongside its set of resource types.
+
+We will use the [aws_ami data resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) to get the ID the latest Amazon ECS-optimized AMI. From the provider.tf file we have the following configuration:
+
+```terraform
+data "aws_ami" "ecs" {
+  most_recent = true
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-ecs-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  owners = ["amazon"]
+}
+
+```
+
+We can refer to this later, when we need it, as ${data.aws_ami.ecs}
+
+## ECR
+
+Amazon Elastic Container Registry (Amazon ECR) is an AWS managed container image registry service that is secure, scalable, and reliable. Amazon ECR supports private container image repositories with resource-based permissions using AWS IAM. This is so that specified users or Amazon EC2 instances can access your container repositories and images.
+
+Amazon ECR contains the following components:
+
+- Registry -- An Amazon ECR registry is provided to each AWS account; you can create image repositories in your registry and store images in them.
+- Authorization token -- Your client must authenticate to Amazon ECR registries as an AWS user before it can push and pull images.
+- Repository -- An Amazon ECR image repository contains your Docker images, Open Container Initiative (OCI) images, and OCI compatible artifacts.
+- Repository policy -- You can control access to your repositories and the images within them with repository policies.
+- Image -- You can push and pull container images to your repositories. You can use these images locally on your development system, or you can use them in Amazon ECS task definitions and Amazon EKS pod specifications.
+
+From Stackoverflow:
+
+> Each account has a Registry, each Registry can contain several repositories. Each Repository can contain several Images. An image can have Several Tags, a Tag can only exist once per Repository.
+
+If you look at the reference to a repository:
+
+```
+[account].dkr.ecr.[region].amazonaws.com/[repository_name]
+```
+
+The part in front of the first / is your registry, the part after the first / is your repository.
+
+If you want to have multiple distinct images, each with their own latest tag, each one should have its own Repository.
+
+### ECR prerequisites
+
+To use ECR, we have to authenticate Docker to Amazons ECR. You need to define the **region** and **aws_account_id**. Use the command below to authenticate Docker to ECR
+
+```console
+$ aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${aws_account_id}.dkr.ecr.${region}.amazonaws.com
+```
+
+You should be able to see a
+
+```console
+Login Succeeded
+```
+
+### ECR configuration
+
+Once authenticated, we can use terraform to create the repository. For terraform, if you look in the file ./ecr.tf we create N remote repositories.
+
+```terraform
+resource "aws_ecr_repository" "repositories" {
+  for_each = var.aws_ecr_repository_repositories
+  name     = each.value.aws_ecr_repository_name
+  tags = merge(
+    var.common_tags,
+    var.aws_ecr_repository_tags,
+    { Workspace = terraform.workspace }
+  )
+}
+```
+
+What's interesting with this resource is that it's using the [for_each argument](https://learn.hashicorp.com/tutorials/terraform/for-each). This argument iterates over a data structure to configure resources or modules with each item in turn. It works best when duplicate resources need to be configured differently but share the same lifecycle. In this case it will look at a variable aws_ecr_repository_repositories which is defined as a map and retrieves for each map entry a repository name. Each of the map entries will result in a new repository resource being created.
