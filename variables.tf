@@ -78,15 +78,15 @@ variable "vpc_tags" {
   default     = {}
 }
 
+# repo structure should include the repository_name, source image name and tag
 variable "aws_ecr_repository_repositories" {
   description = "Map of ECR repositories to create"
   type        = map(any)
   default = {
     repo1 = {
-      aws_ecr_repository_name = "repository1"
-    },
-    repo2 = {
-      aws_ecr_repository_name = "repository2"
+      aws_ecr_repository_name = "repository1",
+      source_image_name       = "bash",
+      source_image_tag        = "latest"
     }
   }
 }

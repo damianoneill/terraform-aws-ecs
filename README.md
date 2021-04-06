@@ -252,7 +252,7 @@ Amazon ECR contains the following components:
 - Repository policy -- You can control access to your repositories and the images within them with repository policies.
 - Image -- You can push and pull container images to your repositories. You can use these images locally on your development system, or you can use them in Amazon ECS task definitions and Amazon EKS pod specifications.
 
-From Stackoverflow:
+From [Stackoverflow](https://stackoverflow.com/a/46242170/5508671):
 
 > Each account has a Registry, each Registry can contain several repositories. Each Repository can contain several Images. An image can have Several Tags, a Tag can only exist once per Repository.
 
@@ -282,7 +282,7 @@ Login Succeeded
 
 ### ECR configuration
 
-Once authenticated, we can use terraform to create the repository. For terraform, if you look in the file ./ecr.tf we create N remote repositories.
+Once authenticated, we can use terraform to create a private repository/repositories. For terraform, if you look in the file ./ecr.tf we create N remote repositories.
 
 ```terraform
 resource "aws_ecr_repository" "repositories" {
@@ -297,3 +297,110 @@ resource "aws_ecr_repository" "repositories" {
 ```
 
 What's interesting with this resource is that it's using the [for_each argument](https://learn.hashicorp.com/tutorials/terraform/for-each). This argument iterates over a data structure to configure resources or modules with each item in turn. It works best when duplicate resources need to be configured differently but share the same lifecycle. In this case it will look at a variable aws_ecr_repository_repositories which is defined as a map and retrieves for each map entry a repository name. Each of the map entries will result in a new repository resource being created.
+
+Lets confirm this was successful by using the aws cli to describe the list of provisioned repositories.
+
+```console
+$ aws ecr describe-repositories
+{
+    "repositories": [
+        {
+            "repositoryArn": "arn:aws:ecr:us-west-2:XXXXXXXXXXX:repository/repository2",
+            "registryId": "XXXXXXXXXXX",
+            "repositoryName": "repository2",
+            "repositoryUri": "XXXXXXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository2",
+            "createdAt": "2021-04-06T08:30:21+01:00",
+            "imageTagMutability": "MUTABLE",
+            "imageScanningConfiguration": {
+                "scanOnPush": false
+            },
+            "encryptionConfiguration": {
+                "encryptionType": "AES256"
+            }
+        },
+        {
+            "repositoryArn": "arn:aws:ecr:us-west-2:XXXXXXXXXXX:repository/repository1",
+            "registryId": "XXXXXXXXXXX",
+            "repositoryName": "repository1",
+            "repositoryUri": "XXXXXXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository1",
+            "createdAt": "2021-04-06T08:30:21+01:00",
+            "imageTagMutability": "MUTABLE",
+            "imageScanningConfiguration": {
+                "scanOnPush": false
+            },
+            "encryptionConfiguration": {
+                "encryptionType": "AES256"
+            }
+```
+
+Now that we have a running repository we can push an image to it. We can test this with something small e.g. the [docker bash image](https://hub.docker.com/_/bash).
+
+Ensure that you have logged into aws (tokens are temporary, it may have expired since you last logged in). Pull the bash image from docker hub.
+
+```console
+docker pull bash:latest
+```
+
+Tag it with your repository name and region e.g.
+
+```console
+docker tag bash:latest XXXXXXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository1
+```
+
+And push it
+
+```console
+docker push XXXXXXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository1
+The push refers to repository [XXXXXXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository1]
+9f55dd778ecf: Pushed
+5ef8968e2d66: Pushed
+b0b9881431d7: Pushed
+latest: digest: sha256:01f988a06c7974b31b6baf8e5f3b7619e0107ffb45964f03dad2079ad5bfcf56 size: 946
+```
+
+This is ok for periodically pushing images to an existing repository, but what we'd like to do is have the image tagged and pushed as part of the terraform apply operation. To do this we will use the terraform [null resource](https://www.terraform.io/docs/language/resources/provisioners/null_resource.html) module.
+
+If you need to run provisioners that aren't directly associated with a specific resource, you can associate them with a null_resource.
+
+Instances of null_resource are treated like normal resources, but they don't do anything. Like with any other resource, you can configure provisioners and connection details on a null_resource. You can also use its triggers argument and any meta-arguments to control exactly where in the dependency graph its provisioners will run.
+
+We can use this resource type to iterate over the repository definition, collect the information we need and pass it to a script that tags then pushes the image to the repository.
+
+```terraform
+resource "null_resource" "push" {
+  for_each = var.aws_ecr_repository_repositories
+  provisioner "local-exec" {
+    command     = "${coalesce("scripts/tagandpush.sh", "${path.module}/scripts/tagandpush.sh")} ${each.value.source_image_name}:${each.value.source_image_tag} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${each.value.aws_ecr_repository_name}:${each.value.source_image_tag}"
+    interpreter = ["bash", "-c"]
+  }
+  depends_on = [
+    aws_ecr_repository.repositories
+  ]
+}
+```
+
+You'll note in the resource definition above we have a [depends_on meta argument](https://www.terraform.io/docs/language/meta-arguments/depends_on.html). Use the depends_on meta-argument to handle hidden resource or module dependencies that Terraform can't automatically infer. Explicitly specifying a dependency is only necessary when a resource or module relies on some other resource's behavior, but doesn't access any of that resource's data in its arguments. In our case, we will only run the tag and push after the repositories have been created.
+
+The script is a trivial bash script that tags and pushes the image.
+
+We can confirm the push was successful, by looking in the repository created by the previous resource and seeing if there are any images present.
+
+```console
+$ aws ecr describe-images --repository-name repository1
+{
+    "imageDetails": [
+        {
+            "registryId": "120276794593",
+            "repositoryName": "repository1",
+            "imageDigest": "sha256:01f988a06c7974b31b6baf8e5f3b7619e0107ffb45964f03dad2079ad5bfcf56",
+            "imageTags": [
+                "latest"
+            ],
+            "imageSizeInBytes": 5714037,
+            "imagePushedAt": "2021-04-06T08:40:56+01:00",
+            "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "artifactMediaType": "application/vnd.docker.container.image.v1+json"
+        }
+    ]
+}
+```
