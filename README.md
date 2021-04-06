@@ -367,7 +367,7 @@ Instances of null_resource are treated like normal resources, but they don't do 
 We can use this resource type to iterate over the repository definition, collect the information we need and pass it to a script that tags then pushes the image to the repository.
 
 ```terraform
-resource "null_resource" "push" {
+resource "null_resource" "push_images" {
   for_each = var.aws_ecr_repository_repositories
   provisioner "local-exec" {
     command     = "${coalesce("scripts/tagandpush.sh", "${path.module}/scripts/tagandpush.sh")} ${each.value.source_image_name}:${each.value.source_image_tag} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${each.value.aws_ecr_repository_name}:${each.value.source_image_tag}"
@@ -381,7 +381,31 @@ resource "null_resource" "push" {
 
 You'll note in the resource definition above we have a [depends_on meta argument](https://www.terraform.io/docs/language/meta-arguments/depends_on.html). Use the depends_on meta-argument to handle hidden resource or module dependencies that Terraform can't automatically infer. Explicitly specifying a dependency is only necessary when a resource or module relies on some other resource's behavior, but doesn't access any of that resource's data in its arguments. In our case, we will only run the tag and push after the repositories have been created.
 
-The script is a trivial bash script that tags and pushes the image.
+The scripts/tagandpush.sh is a trivial bash script that tags and pushes the image.
+
+```bash
+#!/bin/bash
+#
+# Push Trust images to an AWS ECR repository
+
+set -e
+
+source_image="$1"
+target_image="$2"
+
+# e.g. XXXXXXX.dkr.ecr.us-west-2.amazonaws.com/repository1:latest
+registry="$(echo "$target_image" | cut -d/ -f1 | cut -d: -f1)"
+region="$(echo "$target_image" | cut -d. -f4)"
+
+# login to ecr
+aws ecr get-login-password --region "$region" --profile saml | docker login --username AWS --password-stdin "$registry"
+
+# tag image
+docker tag "$source_image" "$target_image"
+
+# push image
+docker push "$target_image"
+```
 
 We can confirm the push was successful, by looking in the repository created by the previous resource and seeing if there are any images present.
 
@@ -390,7 +414,7 @@ $ aws ecr describe-images --repository-name repository1
 {
     "imageDetails": [
         {
-            "registryId": "120276794593",
+            "registryId": "XXXXXXXXXX",
             "repositoryName": "repository1",
             "imageDigest": "sha256:01f988a06c7974b31b6baf8e5f3b7619e0107ffb45964f03dad2079ad5bfcf56",
             "imageTags": [
