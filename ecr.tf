@@ -20,3 +20,9 @@ resource "null_resource" "push_images" {
     aws_ecr_repository.repositories
   ]
 }
+
+output "ecr_repository_images" {
+  value = toset([
+    for repository in aws_ecr_repository.repositories : repository.repository_url
+  ])
+}

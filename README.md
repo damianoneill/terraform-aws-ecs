@@ -428,3 +428,17 @@ $ aws ecr describe-images --repository-name repository1
     ]
 }
 ```
+
+An interesting terraform configuration in the ./ecr.tf is the use of a terraform function([toset](https://www.terraform.io/docs/language/functions/toset.html)) to generate a set populated with the dynamic list of repositories url's.
+
+```terraform
+output "ecr_repository_images" {
+  value = toset([
+    for repository in aws_ecr_repository.repositories : repository.repository_url
+  ])
+}
+```
+
+In the example above, toset converts its argument (repository url list) to a set value.
+
+Pass a list value to toset to convert it to a set, which will remove any duplicate elements and discard the ordering of the elements.
