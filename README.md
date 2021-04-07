@@ -429,7 +429,7 @@ $ aws ecr describe-images --repository-name repository1
 }
 ```
 
-An interesting terraform configuration in the ./ecr.tf is the use of a terraform function([toset](https://www.terraform.io/docs/language/functions/toset.html)) to generate a set populated with the dynamic list of repositories url's.
+An interesting terraform snippet in the ./ecr.tf is the use of a terraform function([toset](https://www.terraform.io/docs/language/functions/toset.html)) to generate a set populated with the dynamic list of repositories url's.
 
 ```terraform
 output "ecr_repository_images" {
@@ -442,3 +442,19 @@ output "ecr_repository_images" {
 In the example above, toset converts its argument (repository url list) to a set value.
 
 Pass a list value to toset to convert it to a set, which will remove any duplicate elements and discard the ordering of the elements.
+
+### ECS configuration
+
+Now that a ECR repositor(ies) are available, lets create a ECS Cluster. An Amazon ECS cluster is a logical grouping of tasks or services. If you are running tasks or services that use the EC2 launch type, a cluster is also a grouping of container instances. ECS stands for EC2 Container Service and is the AWS platform for running Docker containers. ECS needs EC2 instances that are used to run Docker containers on.
+
+Lets start by creating a cluster in ./ecs.tf.
+
+```terraform
+resource "aws_ecs_cluster" "default" {
+  name = var.aws_ecs_cluster_name
+  tags = merge(
+    var.common_tags,
+    {},
+  )
+}
+```

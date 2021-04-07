@@ -96,3 +96,8 @@ variable "aws_ecr_repository_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "aws_ecs_cluster_name" {
+  description = "The name of the ecs cluster (up to 255 letters, numbers, hyphens, and underscores)"
+  type        = string
+}
