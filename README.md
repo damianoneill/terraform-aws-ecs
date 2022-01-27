@@ -1,5 +1,7 @@
 # terraform-aws-ecs
 
+> This project is a work in progress, it is not complete!
+
 Terraform configuration for provisioning a trivial AWS ECS example. **Note** the intro material for the first sections below is cut/paste/modified from [learn terraform modules overview](https://learn.hashicorp.com/tutorials/terraform/module?in=terraform/modules).
 
 ## Prerequisites
@@ -458,3 +460,54 @@ resource "aws_ecs_cluster" "default" {
   )
 }
 ```
+
+Before we look at Services and Tasks we need to add support for EC2 instances.
+
+### EC2 Instances
+
+We will need to define
+
+- Autoscaling Group
+- Launch Configuration(s)
+- Security Group(s)
+- Identify and Access Management Role(s)
+
+Lets begin by looking at the Autoscaling Group.
+
+An Auto Scaling group contains a collection of Amazon EC2 instances that are treated as a logical grouping for the purposes of automatic scaling and management.
+
+The size of an Auto Scaling group depends on the number of instances that you set as the desired capacity. You can adjust its size to meet demand, either manually or by using automatic scaling.
+
+An Auto Scaling group starts by launching enough instances to meet its desired capacity. It maintains this number of instances by performing periodic health checks on the instances in the group. The Auto Scaling group continues to maintain a fixed number of instances even if an instance becomes unhealthy. If an instance becomes unhealthy, the group terminates the unhealthy instance and launches another instance to replace it.
+
+An Auto Scaling group can launch On-Demand Instances, Spot Instances, or both. Spot Instances provide you with access to unused Amazon EC2 capacity at steep discounts relative to On-Demand prices. There are key differences between Spot Instances and On-Demand Instances:
+
+- The price for Spot Instances varies based on demand
+- Amazon EC2 can terminate an individual Spot Instance as the availability of, or price for, Spot Instances changes
+
+Because of the later option, we will use only on-demand instances for this tutorial, this may cost a little more, the upside being that we will not need to debug when an instance availability changes.
+
+```terraform
+resource "aws_autoscaling_group" "ondemand" {
+  name                 = var.aws_autoscaling_group_name
+  vpc_zone_identifier  = module.vpc.private_subnets
+  max_size             = var.aws_autoscaling_group_max_size
+  min_size             = var.aws_autoscaling_group_min_size
+  desired_capacity     = var.aws_autoscaling_group_desired_capacity
+  launch_configuration = aws_launch_configuration.ondemand.name
+
+  tag {
+    key   = "Name"
+    value = var.aws_ecs_cluster_name
+
+    # Make sure EC2 instances are tagged with this tag as well
+    propagate_at_launch = true
+  }
+  ...
+}
+```
+
+## Todos
+
+- make sure all resources have tag defined called Workspace, using terraform.workspace
+- need to create a keypair

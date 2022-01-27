@@ -11,3 +11,4 @@ aws_ecr_repository_repositories = {
   }
 }
 aws_ecs_cluster_name = "terraform_aws_ecs_cluster"
+aws_launch_configuration_key_name = "network-trust-keypair"

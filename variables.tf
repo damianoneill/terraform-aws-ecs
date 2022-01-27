@@ -12,6 +12,9 @@ variable "common_tags" {
   }
 }
 
+###############
+# VPC Variables
+###############
 variable "vpc_name" {
   description = "Name of VPC"
   type        = string
@@ -78,6 +81,11 @@ variable "vpc_tags" {
   default     = {}
 }
 
+
+####################
+# ECR Variables
+####################
+
 # repo structure should include the repository_name, source image name and tag
 variable "aws_ecr_repository_repositories" {
   description = "Map of ECR repositories to create"
@@ -100,4 +108,55 @@ variable "aws_ecr_repository_tags" {
 variable "aws_ecs_cluster_name" {
   description = "The name of the ecs cluster (up to 255 letters, numbers, hyphens, and underscores)"
   type        = string
+}
+
+####################
+# EC2 Variables
+####################
+
+variable "aws_launch_configuration_key_name" {
+  description = "The name an aws ssh key that can be used with the ec2 instances"
+  type        = string
+}
+
+variable "aws_autoscaling_group_name" {
+  description = "The name of the autoscaling group"
+  type        = string
+  default     = "ondemand"
+}
+
+variable "aws_autoscaling_group_max_size" {
+  description = "The max number of ec2 instances in the autoscaling group"
+  type        = string
+  default     = "2"
+}
+
+variable "aws_autoscaling_group_min_size" {
+  description = "The min number of ec2 instances in the autoscaling group"
+  type        = string
+  default     = "2"
+}
+
+variable "aws_autoscaling_group_desired_capacity" {
+  description = "The desired number of ec2 instances in the autoscaling group"
+  type        = string
+  default     = "2"
+}
+
+variable "aws_launch_configuration_name" {
+  description = "The name of the launch configuration"
+  type        = string
+  default     = "ondemand"
+}
+
+variable "aws_launch_configuration_instance_type" {
+  description = "The instance type for the launch configuration"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "aws_security_group_name" {
+  description = "The name of the aws security group"
+  type        = string
+  default     = "ondemand"
 }
